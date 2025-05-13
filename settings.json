@@ -1,0 +1,24 @@
+{
+  "rbxl_file_path": "EmptyBaseplateWith2Model.rbxl",
+  "output_directory": "output",
+  "path_whitelist": [
+    "game.Workspace",
+    "game.ReplicatedStorage",
+    "game.ServerStorage"
+  ],
+  "path_blacklist": [
+  ],
+  "class_whitelist": [],
+  "class_blacklist": [
+    "Script",
+    "LocalScript",
+    "ModuleScript",
+    "Camera",
+    "Terrain"
+  ],
+  "use_path_whitelist": true,
+  "use_path_blacklist": false,
+  "use_class_whitelist": false,
+  "use_class_blacklist": true,
+  "exclude_no_id_items": true
+} 
