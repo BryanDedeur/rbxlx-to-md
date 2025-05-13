@@ -67,4 +67,4 @@ Create a `settings.json` file to configure filters:
 
 ## License
 
-[Insert your license information here] 
+This project is licensed under the MIT License
