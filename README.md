@@ -1,6 +1,10 @@
 # rbxl-to-md
 
-Converts Roblox place `.rbxl` or `.rbxlm` files into human readable `.md` files.
+Converts Roblox place `.rbxl` or `.rbxlm` files into `.md` files. 
+
+Why `.md`? 
+1. Human readable with nice formatting
+2. Git diff friendly
 
 ## Getting Started
 
