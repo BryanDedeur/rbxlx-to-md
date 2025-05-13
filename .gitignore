@@ -1,4 +1,25 @@
+# PyInstaller build artifacts
+build/
+dist/
+*.spec
 
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# Release files
+release/
+
+# OS specific files
 .DS_Store
+Thumbs.db
 
 test/obby-place.rbxlx
+
+test/
