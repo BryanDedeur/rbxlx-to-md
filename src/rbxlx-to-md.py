@@ -260,7 +260,7 @@ def main():
             with open(args.output, 'w') as f:
                 for path, unique_id, class_name, properties in sorted(all_paths):
                     if args.show_class:
-                        f.write(f"{path} ({unique_id}) [{class_name}]")
+                        f.write(f"{path} [{class_name}]({unique_id})")
                     else:
                         f.write(f"{path} ({unique_id})")
                     
@@ -291,7 +291,7 @@ def main():
                     with open(output_file, 'w') as f:
                         for path, unique_id, class_name, properties in sorted(paths):
                             if args.show_class:
-                                f.write(f"{path} ({unique_id}) [{class_name}]")
+                                f.write(f"{path} [{class_name}]({unique_id})")
                             else:
                                 f.write(f"{path} ({unique_id})")
                             
