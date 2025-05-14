@@ -6,6 +6,7 @@ import os
 import json
 import re
 from collections import defaultdict
+from property_handlers import format_property_for_md, extract_properties
 
 def format_name(name):
     """Format the name with square brackets and quotes if it contains spaces."""
@@ -111,64 +112,6 @@ def should_include_class(class_name, settings):
             return False
     
     return True
-
-def format_property_value(prop, indent_level=0):
-    """Format a property value in a generic way that can handle any structure."""
-    indent = "  " * indent_level
-    result = []
-    
-    # Get the property name
-    prop_name = prop.get("name", "")
-    if not prop_name:
-        return ""
-    
-    # Skip empty properties for certain types
-    # This is a minimal list of properties that are often empty and not useful
-    if prop_name in ["AttributesSerialize", "Tags"] and (not prop.text or not prop.text.strip()):
-        return ""
-    
-    # Get the property value
-    value = prop.text if prop.text else ""
-    
-    # Generic approach: output property as NAME: VALUE for simple cases
-    if not list(prop) and value:  # If there are no child elements and there is text
-        result.append(f"{indent}- {prop_name}: {value}")
-    else:
-        # For properties with children or nested structure
-        result.append(f"{indent}- {prop_name}")
-        for child in prop:
-            # If the child has a tag but no name attribute, it's likely a component of a structured property
-            if child.get("name") is None:
-                # For component elements like X, Y, Z in Vector3
-                result.append(f"{indent}  - {child.tag}: {child.text if child.text else ''}")
-            else:
-                # For named child properties, recursively format them
-                child_value = format_property_value(child, indent_level + 1)
-                if child_value:  # Only add non-empty child values
-                    result.extend(child_value.split('\n'))
-    
-    # If no value was added, return empty string
-    if not result:
-        return ""
-    
-    return '\n'.join(result)
-
-def extract_properties(item):
-    """Extract all properties from an item and return them as a formatted string."""
-    properties_elem = item.find("Properties")
-    if properties_elem is None:
-        return ""
-    
-    result = []
-    for prop in sorted(properties_elem, key=lambda x: x.get("name", "")):
-        if prop.get("name") == "Name":
-            continue  # Skip Name property since it's already in the path
-            
-        prop_value = format_property_value(prop)
-        if prop_value:  # Only add non-empty property values
-            result.append(prop_value)
-    
-    return "\n".join(result)
 
 def process_xml(root, settings):
     """Process the XML file and return all item paths with unique IDs, organized by high-level path."""
