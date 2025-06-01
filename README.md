@@ -1,4 +1,4 @@
-# rbxl-to-md
+# rbxlx-to-md
 
 A tool to convert Roblox XML place files to readable Markdown documents.
 
