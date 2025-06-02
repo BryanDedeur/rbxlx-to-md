@@ -6,6 +6,7 @@ import os
 import json
 import re
 import time
+import sys
 from collections import defaultdict
 from property_handlers import format_property_for_md, extract_properties
 
@@ -14,6 +15,23 @@ def format_name(name):
     if ' ' in name:
         return f'["{name}"]'
     return name
+
+def print_progress_bar(progress, total, length=50):
+    """
+    Print a progress bar to show conversion progress.
+    
+    Args:
+        progress: Current progress
+        total: Total items to process
+        length: Length of the progress bar
+    """
+    percent = progress / total
+    filled_length = int(length * percent)
+    bar = '#' * filled_length + '-' * (length - filled_length)
+    sys.stdout.write(f"\rProgress: [{bar}] {percent:.1%}")
+    sys.stdout.flush()
+    if progress == total:
+        sys.stdout.write('\n')
 
 def load_settings(settings_file):
     """Load settings from JSON file, or return default settings if file doesn't exist."""
@@ -126,8 +144,6 @@ def process_xml(root, settings):
     print(f"Found {items_count} total items in XML file. Starting processing...")
     
     processed_count = 0
-    next_milestone = 100
-    milestone_percentage = 1  # Start with 1% milestones
     
     for item in root.findall(".//Item"):
         paths = get_item_path(item, "", processed_ids, settings)
@@ -135,20 +151,9 @@ def process_xml(root, settings):
         
         processed_count += 1
         
-        # Calculate current progress percentage
-        progress_percentage = (processed_count / items_count) * 100
-        
-        # Print progress milestones
-        if progress_percentage >= next_milestone or processed_count == items_count:
-            print(f"Processed {processed_count}/{items_count} items ({progress_percentage:.1f}%)...")
-            
-            # Adjust milestone frequency based on progress
-            if next_milestone == 10:
-                milestone_percentage = 10  # Switch to 10% increments after reaching 10%
-            elif next_milestone == 50:
-                milestone_percentage = 25  # Switch to 25% increments after reaching 50%
-                
-            next_milestone += milestone_percentage
+        # Update progress bar every 1% or for every item if count is small
+        if processed_count % max(1, items_count // 100) == 0 or processed_count == items_count:
+            print_progress_bar(processed_count, items_count)
     
     # Group paths by high-level path (first component)
     print("Grouping paths by high-level components...")
