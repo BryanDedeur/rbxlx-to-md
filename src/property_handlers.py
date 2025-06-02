@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 import re
+from functools import lru_cache
 
+@lru_cache(maxsize=256)
 def format_property_for_md(prop, indent_level=0):
     """
     Format a property value from XML to Markdown format.
@@ -61,40 +63,66 @@ def format_property_for_md(prop, indent_level=0):
             result.append(f"{indent}- {prop_name}: {value}")
         
         elif prop_type == "Color3uint8":
-            # Handle Color3uint8 properties
-            r = next((child.text for child in prop if child.tag == "R"), "0")
-            g = next((child.text for child in prop if child.tag == "G"), "0")
-            b = next((child.text for child in prop if child.tag == "B"), "0")
+            # Handle Color3uint8 properties - optimized child lookup
+            r = g = b = "0"
+            for child in prop:
+                if child.tag == "R":
+                    r = child.text or "0"
+                elif child.tag == "G":
+                    g = child.text or "0"
+                elif child.tag == "B":
+                    b = child.text or "0"
             result.append(f"{indent}- {prop_name}: RGB({r}, {g}, {b})")
         
         elif prop_type == "Vector3":
-            # Handle Vector3 properties
-            x = next((child.text for child in prop if child.tag == "X"), "0")
-            y = next((child.text for child in prop if child.tag == "Y"), "0")
-            z = next((child.text for child in prop if child.tag == "Z"), "0")
+            # Handle Vector3 properties - optimized child lookup
+            x = y = z = "0"
+            for child in prop:
+                if child.tag == "X":
+                    x = child.text or "0"
+                elif child.tag == "Y":
+                    y = child.text or "0"
+                elif child.tag == "Z":
+                    z = child.text or "0"
             result.append(f"{indent}- {prop_name}: ({x}, {y}, {z})")
         
         elif prop_type == "Vector2":
-            # Handle Vector2 properties
-            x = next((child.text for child in prop if child.tag == "X"), "0")
-            y = next((child.text for child in prop if child.tag == "Y"), "0")
+            # Handle Vector2 properties - optimized child lookup
+            x = y = "0"
+            for child in prop:
+                if child.tag == "X":
+                    x = child.text or "0"
+                elif child.tag == "Y":
+                    y = child.text or "0"
             result.append(f"{indent}- {prop_name}: ({x}, {y})")
         
         elif prop_type == "CFrame" or prop_type == "CoordinateFrame":
             # Handle CFrame/CoordinateFrame properties
-            components = []
-            for i in range(12):  # CFrame has 12 components
-                value = next((child.text for child in prop if child.tag == f"V{i}" or child.tag == f"R{i}"), "0")
-                components.append(value)
+            components = ["0"] * 12  # Pre-allocate array
+            for child in prop:
+                tag = child.tag
+                if tag.startswith("V") or tag.startswith("R"):
+                    try:
+                        idx = int(tag[1:])
+                        if 0 <= idx < 12:
+                            components[idx] = child.text or "0"
+                    except ValueError:
+                        pass
             result.append(f"{indent}- {prop_name}: CFrame({', '.join(components)})")
         
         elif prop_type == "OptionalCoordinateFrame":
             # Handle OptionalCoordinateFrame properties (may or may not be present)
             if list(prop):  # Check if there are any children elements
-                components = []
-                for i in range(12):  # CFrame has 12 components
-                    value = next((child.text for child in prop if child.tag == f"V{i}" or child.tag == f"R{i}"), "0")
-                    components.append(value)
+                components = ["0"] * 12  # Pre-allocate array
+                for child in prop:
+                    tag = child.tag
+                    if tag.startswith("V") or tag.startswith("R"):
+                        try:
+                            idx = int(tag[1:])
+                            if 0 <= idx < 12:
+                                components[idx] = child.text or "0"
+                        except ValueError:
+                            pass
                 result.append(f"{indent}- {prop_name}: CFrame({', '.join(components)})")
             else:
                 result.append(f"{indent}- {prop_name}: nil")
@@ -297,9 +325,20 @@ def extract_properties(item):
     # Properties to skip (already handled elsewhere)
     skip_properties = {"Name"}  # Skip Name property since it's already in the path
     
+    # Initialize with estimated capacity for performance
     result = []
+    result_capacity = len(properties_elem)
+    if result_capacity > 0:
+        result = [None] * result_capacity
+    
+    # Track actual size
+    result_size = 0
+    
     try:
-        for prop in sorted(properties_elem, key=lambda x: x.get("name", "")):
+        # Sort properties by name for consistent output
+        sorted_properties = sorted(properties_elem, key=lambda x: x.get("name", ""))
+        
+        for prop in sorted_properties:
             prop_name = prop.get("name", "")
             
             # Skip properties we don't want to include
@@ -309,13 +348,22 @@ def extract_properties(item):
             # Skip empty properties for certain types that are not useful
             if prop_name in ["AttributesSerialize", "Tags"] and (not prop.text or not prop.text.strip()):
                 continue
-                
+            
+            # Format the property
             prop_value = format_property_for_md(prop)
             if prop_value:  # Only add non-empty property values
-                result.append(prop_value)
+                if result_size < len(result):
+                    result[result_size] = prop_value
+                else:
+                    result.append(prop_value)
+                result_size += 1
     except Exception as e:
         print(f"ERROR extracting properties from item: {e}")
         return f"[Error extracting properties: {str(e)}]"
+    
+    # Trim to actual size
+    if result_size < len(result):
+        result = result[:result_size]
     
     return "\n".join(result)
 

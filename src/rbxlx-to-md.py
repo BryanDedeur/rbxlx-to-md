@@ -8,6 +8,7 @@ import re
 import time
 import sys
 from collections import defaultdict
+from functools import lru_cache
 from property_handlers import format_property_for_md, extract_properties
 
 def format_name(name):
@@ -81,13 +82,13 @@ def load_settings(settings_file):
     
     return default_settings
 
+@lru_cache(maxsize=128)
 def is_path_under(path, ancestor_path):
     """Check if a path is under an ancestor path or exactly matches it."""
     # Handle wildcards in ancestor_path
     if '*' in ancestor_path:
         pattern = '^' + ancestor_path.replace('.', '\\.').replace('*', '.*') + '$'
-        if re.match(pattern, path):
-            return True
+        return bool(re.match(pattern, path))
     else:
         # Check if path is exactly ancestor_path or starts with ancestor_path followed by a dot
         return path == ancestor_path or path.startswith(ancestor_path + '.')
@@ -140,12 +141,15 @@ def process_xml(root, settings):
     start_time = time.time()
     all_paths = []
     processed_ids = set()
-    items_count = len(root.findall(".//Item"))
+    
+    # Find all items once instead of repeatedly
+    all_items = list(root.findall(".//Item"))
+    items_count = len(all_items)
     print(f"Found {items_count} total items in XML file. Starting processing...")
     
     processed_count = 0
     
-    for item in root.findall(".//Item"):
+    for item in all_items:
         paths = get_item_path(item, "", processed_ids, settings)
         all_paths.extend(paths)
         
@@ -158,15 +162,18 @@ def process_xml(root, settings):
     # Group paths by high-level path (first component)
     print("Grouping paths by high-level components...")
     grouped_paths = defaultdict(list)
-    for path, unique_id, class_name, properties in all_paths:
+    
+    # Use a direct for loop optimization to avoid repeated .split() calls
+    for path_data in all_paths:
+        path = path_data[0]
         # Extract high-level path (e.g., "Workspace" from "Workspace.Part")
-        parts = path.split('.')
-        if len(parts) > 0:
-            high_level = parts[0]
+        dot_pos = path.find('.')
+        if dot_pos > 0:
+            high_level = path[:dot_pos]
         else:
-            high_level = "Root"
+            high_level = path
         
-        grouped_paths[high_level].append((path, unique_id, class_name, properties))
+        grouped_paths[high_level].append(path_data)
     
     elapsed_time = time.time() - start_time
     print(f"XML processing completed in {elapsed_time:.2f} seconds. Found {len(all_paths)} valid paths across {len(grouped_paths)} high-level groups.")
@@ -199,23 +206,23 @@ def get_item_path(item, parent_path="", processed_ids=None, settings=None):
                     paths.extend(get_item_path(child, parent_path, processed_ids, settings))
             return paths
         
-        # Find the Name property
+        # Find the Name property - optimize by directly accessing Properties/string elements
         name = "Unnamed"
-        try:
-            for prop in item.findall(".//Properties/string[@name='Name']") or []:
-                name = prop.text if prop.text else "Unnamed"
-                break
-        except Exception as e:
-            print(f"ERROR finding Name property: {e} for item of class {class_name}")
+        properties_elem = item.find("Properties")
+        if properties_elem is not None:
+            # Direct child lookup instead of using findall with XPath
+            for prop in properties_elem:
+                if prop.tag == "string" and prop.get("name") == "Name":
+                    name = prop.text if prop.text else "Unnamed"
+                    break
         
-        # Find the UniqueId
+        # Find the UniqueId - optimize with direct lookup
         unique_id = "NoId"
-        try:
-            for prop in item.findall(".//Properties/UniqueId[@name='UniqueId']") or []:
-                unique_id = prop.text if prop.text else "NoId"
-                break
-        except Exception as e:
-            print(f"ERROR finding UniqueId property: {e} for item {name} of class {class_name}")
+        if properties_elem is not None:
+            for prop in properties_elem:
+                if prop.tag == "UniqueId" and prop.get("name") == "UniqueId":
+                    unique_id = prop.text if prop.text else "NoId"
+                    break
         
         # Skip if we've already processed this item (by unique ID)
         if unique_id in processed_ids:
@@ -238,17 +245,11 @@ def get_item_path(item, parent_path="", processed_ids=None, settings=None):
         # Format the name based on whether it contains spaces
         formatted_name = format_name(name)
         
-        # Build path with proper formatting
+        # Build path with proper formatting - optimized string concatenation
         if parent_path:
-            if ' ' in name:
-                current_path = f"{parent_path}{formatted_name}"
-            else:
-                current_path = f"{parent_path}.{formatted_name}"
+            current_path = f"{parent_path}.{formatted_name}" if ' ' not in name else f"{parent_path}{formatted_name}"
         else:
-            if ' ' in name:
-                current_path = formatted_name
-            else:
-                current_path = formatted_name
+            current_path = formatted_name
         
         # Check if this path should be included based on path whitelist/blacklist
         include_current = should_include_path(current_path, settings)
@@ -302,13 +303,15 @@ def main():
         print(f"Using specified output path: {args.output}")
     
     try:
-        # Count lines in input XML file
-        print("Counting lines in input XML file...")
-        line_count_start = time.time()
-        with open(args.input_file, 'r') as f:
-            input_line_count = sum(1 for _ in f)
-        line_count_time = time.time() - line_count_start
-        print(f"Input file contains {input_line_count} lines (counted in {line_count_time:.2f} seconds)")
+        # Skip counting lines in input XML file if not in debug mode
+        input_line_count = 0
+        if args.debug:
+            print("Counting lines in input XML file...")
+            line_count_start = time.time()
+            with open(args.input_file, 'r') as f:
+                input_line_count = sum(1 for _ in f)
+            line_count_time = time.time() - line_count_start
+            print(f"Input file contains {input_line_count} lines (counted in {line_count_time:.2f} seconds)")
         
         # Load settings
         settings = load_settings(args.settings)
@@ -387,9 +390,10 @@ def main():
                     # Add a blank line between items
                     f.write("\n\n")
             
-            # Count lines in output file
-            with open(args.output, 'r') as f:
-                total_output_lines = sum(1 for _ in f)
+            # Only count lines if debug mode is enabled
+            if args.debug:
+                with open(args.output, 'r') as f:
+                    total_output_lines = sum(1 for _ in f)
                 
             print(f"Successfully wrote {total_paths} item paths to {args.output}")
         else:
@@ -430,22 +434,24 @@ def main():
                             # Add a blank line between items
                             f.write("\n\n")
             
-            # Count lines in all output files
-            print("Counting lines in output files...")
-            for output_file in output_files:
-                with open(output_file, 'r') as f:
-                    total_output_lines += sum(1 for _ in f)
+            # Only count lines if debug mode is enabled
+            if args.debug:
+                print("Counting lines in output files...")
+                for output_file in output_files:
+                    with open(output_file, 'r') as f:
+                        total_output_lines += sum(1 for _ in f)
             
             print(f"Successfully wrote {total_paths} item paths across {file_count} files in the {args.output} directory")
         
         write_time = time.time() - write_start
         print(f"Writing completed in {write_time:.2f} seconds")
         
-        # Report line count reduction
-        line_reduction = input_line_count - total_output_lines
-        reduction_percentage = (line_reduction / input_line_count) * 100
-        print(f"Input XML: {input_line_count} lines, Output: {total_output_lines} lines")
-        print(f"Reduced by {line_reduction} lines ({reduction_percentage:.2f}%)")
+        # Report line count reduction only if debug mode is enabled
+        if args.debug and input_line_count > 0:
+            line_reduction = input_line_count - total_output_lines
+            reduction_percentage = (line_reduction / input_line_count) * 100
+            print(f"Input XML: {input_line_count} lines, Output: {total_output_lines} lines")
+            print(f"Reduced by {line_reduction} lines ({reduction_percentage:.2f}%)")
         
         total_time = time.time() - start_time
         print(f"Total conversion completed in {total_time:.2f} seconds")
