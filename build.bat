@@ -65,17 +65,17 @@ python -m PyInstaller %pyinstaller_opts% --name "%output_name%" src/rbxlx-to-md.
 :: Copy executable to release folder
 copy "dist\%output_name%" "release\%platform%\"
 
-:: Copy settings.json template if it exists
-if exist "settings.json" (
-    copy settings.json "release\%platform%\"
+:: Copy rbxlx-to-md-settings template if it exists
+if exist "src\rbxlx-to-md-settings.json" (
+    copy "src\rbxlx-to-md-settings.json" "release\%platform%\rbxlx-to-md-settings.json"
 ) else (
-    :: Create a minimal settings.json template
-    echo {> "release\%platform%\settings.json"
-    echo   "Ignore": {>> "release\%platform%\settings.json"
-    echo     "ClassName": [],>> "release\%platform%\settings.json"
-    echo     "Path": []>> "release\%platform%\settings.json"
-    echo   }>> "release\%platform%\settings.json"
-    echo }>> "release\%platform%\settings.json"
+    :: Create a minimal rbxlx-to-md-settings template
+    echo {> "release\%platform%\rbxlx-to-md-settings.json"
+    echo   "Ignore": {>> "release\%platform%\rbxlx-to-md-settings.json"
+    echo     "ClassName": [],>> "release\%platform%\rbxlx-to-md-settings.json"
+    echo     "Path": []>> "release\%platform%\rbxlx-to-md-settings.json"
+    echo   }>> "release\%platform%\rbxlx-to-md-settings.json"
+    echo }>> "release\%platform%\rbxlx-to-md-settings.json"
 )
 
 :: Add README for this platform
@@ -90,7 +90,7 @@ if "%platform%"=="windows" (
 echo.>> "release\%platform%\README.txt"
 echo Options:>> "release\%platform%\README.txt"
 echo   --output, -o      Output directory path (default: input_file_name)>> "release\%platform%\README.txt"
-echo   --settings, -s    Path to settings JSON file (default: settings.json)>> "release\%platform%\README.txt"
+echo   --settings, -s    Path to settings file (default: rbxlx-to-md-settings)>> "release\%platform%\README.txt"
 echo   --show-class, -c  Include class names in the output>> "release\%platform%\README.txt"
 echo   --single-file, -f Output to a single file instead of separate files per path>> "release\%platform%\README.txt"
 echo   --show-properties, -p Include properties in the output (default: True)>> "release\%platform%\README.txt"
@@ -102,7 +102,6 @@ if "%platform%"=="windows" (
     echo ./rbxlx-to-md game.rbxlx -o game_paths -c>> "release\%platform%\README.txt"
 )
 echo.>> "release\%platform%\README.txt"
-echo For more information, visit: https://github.com/bdedeurwaerder/rbxl-to-md>> "release\%platform%\README.txt"
 
 :: Clean up PyInstaller artifacts
 rmdir /s /q build

@@ -282,10 +282,14 @@ def main():
     start_time = time.time()
     print("Starting rbxlx-to-md conversion...")
     
+    # Get the directory where this script is located
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    default_settings_path = os.path.join(script_dir, 'rbxlx-to-md-settings.json')
+    
     parser = argparse.ArgumentParser(description='Convert Roblox XML file to readable item paths')
     parser.add_argument('input_file', help='Path to the Roblox XML file')
     parser.add_argument('--output', '-o', help='Output directory path (default: input_file_name_paths)')
-    parser.add_argument('--settings', '-s', default='settings.json', help='Path to settings JSON file (default: settings.json)')
+    parser.add_argument('--settings', '-s', default=default_settings_path, help=f'Path to settings JSON file (default: {default_settings_path})')
     parser.add_argument('--show-class', '-c', action='store_true', help='Include class names in the output')
     parser.add_argument('--single-file', '-f', action='store_true', help='Output to a single file instead of separate files per path')
     parser.add_argument('--show-properties', '-p', action='store_true', help='Include properties in the output (default: True)', default=True)

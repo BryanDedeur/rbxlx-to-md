@@ -48,12 +48,12 @@ build_for_platform() {
         # Copy executable to release folder
         cp dist/$output_name "release/$platform/"
         
-        # Copy settings.json template if it exists
-        if [ -f "settings.json" ]; then
-            cp settings.json "release/$platform/"
+        # Copy rbxlx-to-md-settings template if it exists
+        if [ -f "src/rbxlx-to-md-settings.json" ]; then
+            cp "src/rbxlx-to-md-settings.json" "release/$platform/rbxlx-to-md-settings.json"
         else
-            # Create a minimal settings.json template
-            cat > "release/$platform/settings.json" << EOL
+            # Create a minimal rbxlx-to-md-settings template
+            cat > "release/$platform/rbxlx-to-md-settings.json" << EOL
 {
   "Ignore": {
     "ClassName": [],
@@ -72,7 +72,7 @@ $([ "$platform" = "windows" ] && echo ".\\rbxlx-to-md.exe" || echo "./rbxlx-to-m
 
 Options:
   --output, -o      Output directory path (default: input_file_name)
-  --settings, -s    Path to settings JSON file (default: settings.json)
+  --settings, -s    Path to settings file (default: rbxlx-to-md-settings)
   --show-class, -c  Include class names in the output
   --single-file, -f Output to a single file instead of separate files per path
   --show-properties, -p Include properties in the output (default: True)
@@ -80,7 +80,6 @@ Options:
 Example:
 $([ "$platform" = "windows" ] && echo ".\\rbxlx-to-md.exe" || echo "./rbxlx-to-md") game.rbxlx -o game_paths -c
 
-For more information, visit: https://github.com/bdedeurwaerder/rbxl-to-md
 EOL
     fi
     
