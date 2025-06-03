@@ -26,7 +26,7 @@ build_for_platform() {
     case $platform in
         windows)
             output_name="rbxlx-to-md.exe"
-            pyinstaller_opts="--onefile --windowed"
+            pyinstaller_opts="--onefile"
             ;;
         macos)
             output_name="rbxlx-to-md"
@@ -43,10 +43,23 @@ build_for_platform() {
         echo "⚠️  Building Windows executable requires Windows or Wine environment"
         echo "⚠️  Skipping Windows build as this appears to be a $(uname) environment"
     else
+        echo "Running PyInstaller for $platform..."
         python3 -m PyInstaller $pyinstaller_opts --name "$output_name" src/rbxlx-to-md.py
         
+        # Check if PyInstaller succeeded
+        if [ ! -f "dist/$output_name" ]; then
+            echo "❌ Error: PyInstaller failed to create executable for $platform"
+            exit 1
+        fi
+        
         # Copy executable to release folder
+        echo "Copying executable to release folder..."
         cp dist/$output_name "release/$platform/"
+        if [ $? -ne 0 ]; then
+            echo "❌ Error: Failed to copy executable for $platform"
+            exit 1
+        fi
+        echo "✅ Successfully created executable for $platform"
         
         # Copy rbxlx-to-md-settings template if it exists
         if [ -f "src/rbxlx-to-md-settings.json" ]; then
@@ -83,14 +96,16 @@ $([ "$platform" = "windows" ] && echo ".\\rbxlx-to-md.exe" || echo "./rbxlx-to-m
 EOL
     fi
     
-    # Clean up PyInstaller artifacts
-    rm -rf build dist *.spec
+    # Don't clean up here - cleanup happens after all builds complete
 }
 
 # Build for each platform
 build_for_platform "macos"
 build_for_platform "linux"
 build_for_platform "windows"
+
+echo "🔨 Cleaning up build artifacts..."
+rm -rf build dist *.spec
 
 echo "📦 Creating release ZIP files..."
 cd release

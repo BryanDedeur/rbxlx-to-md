@@ -15,8 +15,11 @@ if %ERRORLEVEL% neq 0 (
 
 :: Function to build for a specific platform
 call :build_for_platform windows
-call :build_for_platform macos
-call :build_for_platform linux
+
+echo 🔨 Cleaning up build artifacts...
+rmdir /s /q build 2>nul
+rmdir /s /q dist 2>nul
+del *.spec 2>nul
 
 echo 📦 Creating release ZIP files...
 cd release
@@ -44,7 +47,7 @@ if not exist "release\%platform%" mkdir "release\%platform%"
 :: Platform-specific settings
 if "%platform%"=="windows" (
     set output_name=rbxlx-to-md.exe
-    set pyinstaller_opts=--onefile --windowed
+    set pyinstaller_opts=--onefile
 ) else if "%platform%"=="macos" (
     set output_name=rbxlx-to-md
     set pyinstaller_opts=--onefile
@@ -60,10 +63,23 @@ if not "%platform%"=="windows" (
 )
 
 :: Run PyInstaller
+echo Running PyInstaller for %platform%...
 python -m PyInstaller %pyinstaller_opts% --name "%output_name%" src/rbxlx-to-md.py
 
+:: Check if PyInstaller succeeded
+if not exist "dist\%output_name%" (
+    echo ❌ Error: PyInstaller failed to create executable for %platform%
+    exit /b 1
+)
+
 :: Copy executable to release folder
+echo Copying executable to release folder...
 copy "dist\%output_name%" "release\%platform%\"
+if %ERRORLEVEL% neq 0 (
+    echo ❌ Error: Failed to copy executable for %platform%
+    exit /b 1
+)
+echo ✅ Successfully created executable for %platform%
 
 :: Copy rbxlx-to-md-settings template if it exists
 if exist "src\rbxlx-to-md-settings.json" (
@@ -102,10 +118,5 @@ if "%platform%"=="windows" (
     echo ./rbxlx-to-md game.rbxlx -o game_paths -c>> "release\%platform%\README.txt"
 )
 echo.>> "release\%platform%\README.txt"
-
-:: Clean up PyInstaller artifacts
-rmdir /s /q build
-rmdir /s /q dist
-del *.spec
 
 exit /b 0 
